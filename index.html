@@ -11,8 +11,76 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background-color: #f4f4f9; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-    h1 { margin-bottom: 20px; color: #333; }
+    h1 { margin-bottom: 16px; color: #333; }
     
+    /* Botão Principal de Criar Post */
+    .btn-novo-post {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 20px;
+      box-shadow: 2px 2px 0px #1e40af;
+    }
+    .btn-novo-post:active { transform: scale(0.98); }
+
+    /* Container do Formulário de Criar Post */
+    #form-container {
+      width: 100%;
+      max-width: 450px;
+      margin-bottom: 20px;
+    }
+
+    .form-post {
+      background: white;
+      border: 2px solid #222;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 4px 4px 0px #222;
+    }
+
+    .form-post input, .form-post textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 2px solid #222;
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+
+    .form-post textarea { resize: vertical; min-height: 70px; }
+
+    .form-acoes {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn-cancelar {
+      background: #e5e7eb;
+      border: 2px solid #222;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .btn-enviar {
+      background: #10b981;
+      color: white;
+      border: 2px solid #222;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
     #feed { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 450px; }
 
     /* Card com visual similar ao print */
@@ -98,17 +166,69 @@
 <body>
 
   <h1>Mural Anônimo 💌</h1>
+  
+  <button class="btn-novo-post" onclick="toggleFormulario()">+ Nova Postagem</button>
+  
+  <!-- O formulário será renderizado aqui -->
+  <div id="form-container"></div>
+
   <div id="feed">Carregando postagens...</div>
 
   <script>
-    // 1. Configuração do Supabase (substitua pelas suas credenciais)
-    const SUPABASE_URL = "https://yrmyiezgvhyfultmyvhm.supabase.co"; // ✅ apenas o domínio base
+    const SUPABASE_URL = "https://yrmyiezgvhyfultmyvhm.supabase.co"; 
     const SUPABASE_KEY = "sb_publishable_J5L4SETBv8hkZy7vaaUrtg_MGjvJgCB";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const feedEl = document.getElementById("feed");
+    const formContainerEl = document.getElementById("form-container");
 
-    // 2. Função para buscar os posts no banco
+    // Alterna a exibição do formulário
+    function toggleFormulario() {
+      if (formContainerEl.innerHTML !== "") {
+        formContainerEl.innerHTML = ""; // Desrenderiza o formulário
+        return;
+      }
+
+      formContainerEl.innerHTML = `
+        <form class="form-post" onsubmit="criarPostagem(event)">
+          <input type="text" id="input-emoji" placeholder="Emoji (ex: 😍, 🚀, 🤡)" maxlength="5" required />
+          <textarea id="input-texto" placeholder="O que você está pensando?" required></textarea>
+          <input type="text" id="input-hashtags" placeholder="Hashtags separadas por espaço (ex: #dev #supabase)" />
+          
+          <div class="form-acoes">
+            <button type="button" class="btn-cancelar" onclick="toggleFormulario()">Cancelar</button>
+            <button type="submit" class="btn-enviar">Publicar</button>
+          </div>
+        </form>
+      `;
+    }
+
+    // Envia o novo post para o Supabase
+    async function criarPostagem(event) {
+      event.preventDefault();
+
+      const emoji = document.getElementById("input-emoji").value.trim();
+      const texto = document.getElementById("input-texto").value.trim();
+      const hashtagsRaw = document.getElementById("input-hashtags").value.trim();
+      
+      // Converte a string de hashtags em um Array de Textos
+      const hashtags = hashtagsRaw ? hashtagsRaw.split(" ").filter(h => h.length > 0) : [];
+
+      const { error } = await supabaseClient
+        .from("postagens")
+        .insert([{ emoji, texto, hashtags }]);
+
+      if (error) {
+        alert("Erro ao criar postagem!");
+        console.error(error);
+        return;
+      }
+
+      formContainerEl.innerHTML = ""; // Desrenderiza o formulário após postar
+      carregarPostagens(); // Recarrega a lista
+    }
+
+    // Busca os posts no banco
     async function carregarPostagens() {
       const { data: postagens, error } = await supabaseClient
         .from("postagens")
@@ -160,7 +280,6 @@
       });
     }
 
-    // 3. Função para aumentar os likes
     async function curtirPost(id, likesAtuais) {
       const { error } = await supabaseClient
         .from("postagens")
@@ -170,7 +289,6 @@
       if (!error) carregarPostagens();
     }
 
-    // 4. Função para adicionar um novo comentário no array
     async function adicionarComentario(event, id, comentariosAtuais) {
       event.preventDefault();
       const input = event.target.querySelector("input");
@@ -186,7 +304,6 @@
       if (!error) carregarPostagens();
     }
 
-    // Inicializa a busca ao carregar a página
     carregarPostagens();
   </script>
 </body>
