@@ -1,11 +1,193 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rede</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mural Anônimo</title>
+  
+  <!-- SDK oficial do Supabase via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: #f4f4f9; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+    h1 { margin-bottom: 20px; color: #333; }
+    
+    #feed { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 450px; }
+
+    /* Card com visual similar ao print */
+    .card {
+      background: white;
+      border: 2px solid #222;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 4px 4px 0px #222;
+    }
+
+    .box {
+      border: 2px solid #222;
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .emoji-box { font-size: 2.5rem; background: #fff; }
+    .texto-box { font-size: 1.1rem; color: #222; text-align: left; }
+    .hashtags-box { color: #2563eb; font-size: 0.9rem; font-weight: bold; }
+
+    .likes-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+    }
+
+    .btn-like {
+      background: #ff4757;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-like:active { transform: scale(0.95); }
+
+    .comentarios-box {
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .lista-comentarios {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .lista-comentarios li {
+      background: #f1f2f6;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .form-comentario { display: flex; gap: 6px; }
+    .form-comentario input {
+      flex: 1;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .form-comentario button {
+      padding: 6px 12px;
+      border: none;
+      background: #222;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    <h1>Rede social supimpa!!</h1>
+
+  <h1>Mural Anônimo 💌</h1>
+  <div id="feed">Carregando postagens...</div>
+
+  <script>
+    // 1. Configuração do Supabase (substitua pelas suas credenciais)
+    const SUPABASE_URL = "https://yrmyiezgvhyfultmyvhm.supabase.co/rest/v1/";
+    const SUPABASE_KEY = "sb_publishable_J5L4SETBv8hkZy7vaaUrtg_MGjvJgCB";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const feedEl = document.getElementById("feed");
+
+    // 2. Função para buscar os posts no banco
+    async function carregarPostagens() {
+      const { data: postagens, error } = await supabaseClient
+        .from("postagens")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        feedEl.innerHTML = "<p>Erro ao carregar postagens.</p>";
+        console.error(error);
+        return;
+      }
+
+      if (postagens.length === 0) {
+        feedEl.innerHTML = "<p>Nenhuma postagem encontrada.</p>";
+        return;
+      }
+
+      feedEl.innerHTML = "";
+      postagens.forEach(post => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const hashtagsTexto = post.hashtags ? post.hashtags.join(" ") : "";
+        const listaComentariosHTML = (post.comentarios || [])
+          .map(c => `<li>${c}</li>`)
+          .join("");
+
+        card.innerHTML = `
+          <div class="box emoji-box">${post.emoji || '❤️'}</div>
+          <div class="box texto-box">${post.texto}</div>
+          <div class="box hashtags-box">${hashtagsTexto}</div>
+          
+          <div class="box likes-box">
+            <span>❤️ ${post.likes || 0} Likes</span>
+            <button class="btn-like" onclick="curtirPost(${post.id}, ${post.likes || 0})">Curtir</button>
+          </div>
+
+          <div class="box comentarios-box">
+            <strong>Comentários:</strong>
+            <ul class="lista-comentarios">${listaComentariosHTML}</ul>
+            <form class="form-comentario" onsubmit="adicionarComentario(event, ${post.id}, ${JSON.stringify(post.comentarios || []).replace(/"/g, '&quot;')})">
+              <input type="text" placeholder="Comentar..." required />
+              <button type="submit">Enviar</button>
+            </form>
+          </div>
+        `;
+
+        feedEl.appendChild(card);
+      });
+    }
+
+    // 3. Função para aumentar os likes
+    async function curtirPost(id, likesAtuais) {
+      const { error } = await supabaseClient
+        .from("postagens")
+        .update({ likes: likesAtuais + 1 })
+        .eq("id", id);
+
+      if (!error) carregarPostagens();
+    }
+
+    // 4. Função para adicionar um novo comentário no array
+    async function adicionarComentario(event, id, comentariosAtuais) {
+      event.preventDefault();
+      const input = event.target.querySelector("input");
+      const novoComentario = input.value.trim();
+
+      if (!novoComentario) return;
+
+      const { error } = await supabaseClient
+        .from("postagens")
+        .update({ comentarios: [...comentariosAtuais, novoComentario] })
+        .eq("id", id);
+
+      if (!error) carregarPostagens();
+    }
+
+    // Inicializa a busca ao carregar a página
+    carregarPostagens();
+  </script>
 </body>
 </html>
