@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mural Anônimo</title>
+  <title>Rafa</title>
   
   <!-- SDK oficial do Supabase via CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -112,18 +112,29 @@
       cursor: pointer;
     }
 
-    #feed { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 450px; }
-
+    #feed { 
+        display: flex; 
+        /* flex-direction: column;  */
+        flex-direction: row;
+        align-items: center; 
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 20px; 
+        width: 100%; 
+        /* max-width: 450px;  */
+    }
+    
     /* Card da Postagem */
     .card {
-      background: white;
-      border: 2px solid #222;
-      border-radius: 16px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      box-shadow: 4px 4px 0px #222;
+        background: white;
+        border: 2px solid #222;
+        border-radius: 16px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        box-shadow: 4px 4px 0px #222;
+        max-width: 450px; 
     }
 
     .box {
@@ -204,16 +215,27 @@
       border-radius: 6px;
       cursor: pointer;
     }
+    header{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
   </style>
 </head>
 <body>
+    <header>
+        <h1>MuralDoRafa</h1>
+        
+        <div class="acoes-topo">
+            <button class="btn-acao btn-novo-post" onclick="toggleFormulario()">+</button>
+            <button class="btn-acao btn-pesquisar" onclick="togglePesquisa()">🔍</button>
+        </div>
 
-  <h1>Mural Anônimo 💌</h1>
-  
-  <div class="acoes-topo">
-    <button class="btn-acao btn-novo-post" onclick="toggleFormulario()">+ Nova Postagem</button>
-    <button class="btn-acao btn-pesquisar" onclick="togglePesquisa()">🔍 Pesquisar</button>
-  </div>
+    </header>
+
   
   <div id="form-container"></div>
   <div id="search-container"></div>
