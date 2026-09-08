@@ -13,29 +13,36 @@
     body { background-color: #f4f4f9; padding: 20px; display: flex; flex-direction: column; align-items: center; }
     h1 { margin-bottom: 16px; color: #333; }
     
-    /* Botão Principal de Criar Post */
-    .btn-novo-post {
-      background: #2563eb;
-      color: white;
+    /* Container para os botões do topo */
+    .acoes-topo {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .btn-acao {
       border: none;
       padding: 10px 18px;
       border-radius: 8px;
       font-size: 1rem;
       font-weight: bold;
       cursor: pointer;
-      margin-bottom: 20px;
-      box-shadow: 2px 2px 0px #1e40af;
+      color: white;
     }
-    .btn-novo-post:active { transform: scale(0.98); }
+    .btn-acao:active { transform: scale(0.98); }
 
-    /* Container do Formulário de Criar Post */
-    #form-container {
+    .btn-novo-post { background: #2563eb; box-shadow: 2px 2px 0px #1e40af; }
+    .btn-pesquisar { background: #8b5cf6; box-shadow: 2px 2px 0px #6d28d9; }
+
+    /* Containers dinâmicos */
+    #form-container, #search-container {
       width: 100%;
       max-width: 450px;
       margin-bottom: 20px;
     }
 
-    .form-post {
+    /* Estilo genérico dos cards de formulários */
+    .form-card {
       background: white;
       border: 2px solid #222;
       border-radius: 16px;
@@ -46,7 +53,7 @@
       box-shadow: 4px 4px 0px #222;
     }
 
-    .form-post input, .form-post textarea {
+    .form-card input, .form-card textarea {
       width: 100%;
       padding: 8px 12px;
       border: 2px solid #222;
@@ -54,7 +61,7 @@
       font-size: 0.95rem;
     }
 
-    .form-post textarea { resize: vertical; min-height: 70px; }
+    .form-card textarea { resize: vertical; min-height: 70px; }
 
     .form-acoes {
       display: flex;
@@ -81,9 +88,33 @@
       font-weight: bold;
     }
 
+    /* Feedback do Filtro Ativo */
+    .filtro-ativo {
+      background: #e0e7ff;
+      border: 2px solid #4338ca;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 450px;
+      font-weight: bold;
+      color: #3730a3;
+    }
+
+    .btn-limpar-filtro {
+      background: transparent;
+      border: none;
+      color: #ef4444;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
     #feed { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 450px; }
 
-    /* Card com visual similar ao print */
+    /* Card da Postagem */
     .card {
       background: white;
       border: 2px solid #222;
@@ -167,10 +198,14 @@
 
   <h1>Mural Anônimo 💌</h1>
   
-  <button class="btn-novo-post" onclick="toggleFormulario()">+ Nova Postagem</button>
+  <div class="acoes-topo">
+    <button class="btn-acao btn-novo-post" onclick="toggleFormulario()">+ Nova Postagem</button>
+    <button class="btn-acao btn-pesquisar" onclick="togglePesquisa()">🔍 Pesquisar</button>
+  </div>
   
-  <!-- O formulário será renderizado aqui -->
   <div id="form-container"></div>
+  <div id="search-container"></div>
+  <div id="filtro-container"></div>
 
   <div id="feed">Carregando postagens...</div>
 
@@ -181,16 +216,21 @@
 
     const feedEl = document.getElementById("feed");
     const formContainerEl = document.getElementById("form-container");
+    const searchContainerEl = document.getElementById("search-container");
+    const filtroContainerEl = document.getElementById("filtro-container");
 
-    // Alterna a exibição do formulário
+    let hashtagAtual = null; // Guarda a hashtag pesquisada no momento
+
+    // Alterna o formulário de criação
     function toggleFormulario() {
+      searchContainerEl.innerHTML = ""; // Fecha pesquisa se estiver aberta
       if (formContainerEl.innerHTML !== "") {
-        formContainerEl.innerHTML = ""; // Desrenderiza o formulário
+        formContainerEl.innerHTML = "";
         return;
       }
 
       formContainerEl.innerHTML = `
-        <form class="form-post" onsubmit="criarPostagem(event)">
+        <form class="form-card" onsubmit="criarPostagem(event)">
           <input type="text" id="input-emoji" placeholder="Emoji (ex: 😍, 🚀, 🤡)" maxlength="50" required />
           <textarea id="input-texto" placeholder="O que você está pensando?" required></textarea>
           <input type="text" id="input-hashtags" placeholder="Hashtags separadas por espaço (ex: #dev #supabase)" />
@@ -203,6 +243,47 @@
       `;
     }
 
+    // Alterna o formulário de pesquisa
+    function togglePesquisa() {
+      formContainerEl.innerHTML = ""; // Fecha postagem se estiver aberta
+      if (searchContainerEl.innerHTML !== "") {
+        searchContainerEl.innerHTML = "";
+        return;
+      }
+
+      searchContainerEl.innerHTML = `
+        <form class="form-card" onsubmit="executarPesquisa(event)">
+          <input type="text" id="input-busca-hashtag" placeholder="Digite a hashtag (ex: #dev ou dev)" required />
+          <div class="form-acoes">
+            <button type="button" class="btn-cancelar" onclick="togglePesquisa()">Cancelar</button>
+            <button type="submit" class="btn-enviar" style="background:#8b5cf6;">Buscar</button>
+          </div>
+        </form>
+      `;
+    }
+
+    // Executa o filtro de busca
+    function executarPesquisa(event) {
+      event.preventDefault();
+      let term = document.getElementById("input-busca-hashtag").value.trim();
+      
+      // Adiciona o '#' caso o usuário tenha digitado sem
+      if (!term.startsWith('#')) {
+        term = '#' + term;
+      }
+
+      hashtagAtual = term;
+      searchContainerEl.innerHTML = ""; // Esconde o input após a busca
+      carregarPostagens();
+    }
+
+    // Limpa a busca e volta ao feed normal
+    function limparFiltro() {
+      hashtagAtual = null;
+      filtroContainerEl.innerHTML = "";
+      carregarPostagens();
+    }
+
     // Envia o novo post para o Supabase
     async function criarPostagem(event) {
       event.preventDefault();
@@ -211,8 +292,12 @@
       const texto = document.getElementById("input-texto").value.trim();
       const hashtagsRaw = document.getElementById("input-hashtags").value.trim();
       
-      // Converte a string de hashtags em um Array de Textos
-      const hashtags = hashtagsRaw ? hashtagsRaw.split(" ").filter(h => h.length > 0) : [];
+      // Converte a string em Array e garante o caractere '#'
+      const hashtags = hashtagsRaw
+        ? hashtagsRaw.split(" ")
+            .filter(h => h.length > 0)
+            .map(h => h.startsWith('#') ? h : '#' + h)
+        : [];
 
       const { error } = await supabaseClient
         .from("postagens")
@@ -224,16 +309,32 @@
         return;
       }
 
-      formContainerEl.innerHTML = ""; // Desrenderiza o formulário após postar
-      carregarPostagens(); // Recarrega a lista
+      formContainerEl.innerHTML = "";
+      carregarPostagens();
     }
 
-    // Busca os posts no banco
+    // Busca os posts no banco (com ou sem filtro)
     async function carregarPostagens() {
-      const { data: postagens, error } = await supabaseClient
+      let query = supabaseClient
         .from("postagens")
         .select("*")
         .order("created_at", { ascending: false });
+
+      // Se houver pesquisa ativa, filtra a coluna array no Postgres
+      if (hashtagAtual) {
+        query = query.contains("hashtags", [hashtagAtual]);
+        
+        filtroContainerEl.innerHTML = `
+          <div class="filtro-ativo">
+            <span>Filtrando por: ${hashtagAtual}</span>
+            <button class="btn-limpar-filtro" onclick="limparFiltro()">Limpar ✖</button>
+          </div>
+        `;
+      } else {
+        filtroContainerEl.innerHTML = "";
+      }
+
+      const { data: postagens, error } = await query;
 
       if (error) {
         feedEl.innerHTML = "<p>Erro ao carregar postagens.</p>";
@@ -242,7 +343,7 @@
       }
 
       if (postagens.length === 0) {
-        feedEl.innerHTML = "<p>Nenhuma postagem encontrada.</p>";
+        feedEl.innerHTML = "<p>Nenhuma postagem encontrada com esses critérios.</p>";
         return;
       }
 
