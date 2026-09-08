@@ -144,23 +144,27 @@
       font-weight: bold;
     }
 
-    .btn-like {
-      background: #ff4757;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
+    /* Estilo do emoji de coração clicável */
+    .coracao-interativo {
+      font-size: 1.4rem;
+      user-select: none;
+      transition: transform 0.1s ease;
     }
-    .btn-like:active { transform: scale(0.95); }
-    
-    /* Estilo para quando o botão estiver desabilitado/curtido */
-    .btn-like:disabled {
-      background: #cbd5e1;
-      color: #64748b;
-      cursor: not-allowed;
-      transform: none;
+
+    .coracao-interativo.clicavel {
+      cursor: pointer;
+    }
+
+    .coracao-interativo.clicavel:hover {
+      transform: scale(1.2);
+    }
+
+    .coracao-interativo.clicavel:active {
+      transform: scale(0.9);
+    }
+
+    .coracao-interativo.ja-curtido {
+      cursor: default;
     }
 
     .comentarios-box {
@@ -229,7 +233,7 @@
 
     let hashtagAtual = null;
 
-    // --- MÉTODOS DE CONTROLE DO LOCALSTORAGE ---
+    // Controladores do LocalStorage
     function getCurtidasLocais() {
       const curtidas = localStorage.getItem("curtidas_mural");
       return curtidas ? JSON.parse(curtidas) : [];
@@ -243,7 +247,7 @@
       }
     }
 
-    // Alterna o formulário de criação
+    // Alterna formulário de criação
     function toggleFormulario() {
       searchContainerEl.innerHTML = "";
       if (formContainerEl.innerHTML !== "") {
@@ -265,7 +269,7 @@
       `;
     }
 
-    // Alterna o formulário de pesquisa
+    // Alterna formulário de pesquisa
     function togglePesquisa() {
       formContainerEl.innerHTML = "";
       if (searchContainerEl.innerHTML !== "") {
@@ -298,14 +302,14 @@
       carregarPostagens();
     }
 
-    // Limpa a busca e volta ao feed normal
+    // Limpa a busca e volta ao feed completo
     function limparFiltro() {
       hashtagAtual = null;
       filtroContainerEl.innerHTML = "";
       carregarPostagens();
     }
 
-    // Envia o novo post para o Supabase
+    // Envia o novo post
     async function criarPostagem(event) {
       event.preventDefault();
 
@@ -333,7 +337,7 @@
       carregarPostagens();
     }
 
-    // Busca os posts no banco (com ou sem filtro)
+    // Carrega postagens
     async function carregarPostagens() {
       let query = supabaseClient
         .from("postagens")
@@ -366,7 +370,6 @@
         return;
       }
 
-      // Obtém as curtidas salvas nesta máquina
       const curtidasLocais = getCurtidasLocais();
 
       feedEl.innerHTML = "";
@@ -379,8 +382,10 @@
           .map(c => `<li>${c}</li>`)
           .join("");
 
-        // Checa se o post atual já foi curtido localmente
         const jaCurtido = curtidasLocais.includes(post.id);
+        const emojiCoracao = jaCurtido ? '❤️' : '🩶';
+        const classeCoracao = jaCurtido ? 'ja-curtido' : 'clicavel';
+        const acaoClique = jaCurtido ? '' : `onclick="curtirPost(${post.id}, ${post.likes || 0})"`;
 
         card.innerHTML = `
           <div class="box emoji-box">${post.emoji || '❤️'}</div>
@@ -388,14 +393,12 @@
           <div class="box hashtags-box">${hashtagsTexto}</div>
           
           <div class="box likes-box">
-            <span>❤️ ${post.likes || 0} Likes</span>
-            <button 
-              class="btn-like" 
-              onclick="curtirPost(${post.id}, ${post.likes || 0})"
-              ${jaCurtido ? 'disabled' : ''}
-            >
-              ${jaCurtido ? 'Curtido' : 'Curtir'}
-            </button>
+            <span>
+              <span class="coracao-interativo ${classeCoracao}" ${acaoClique}>
+                ${emojiCoracao}
+              </span>
+              ${post.likes || 0} Likes
+            </span>
           </div>
 
           <div class="box comentarios-box">
@@ -413,7 +416,6 @@
     }
 
     async function curtirPost(id, likesAtuais) {
-      // Bloqueio de segurança no código antes da chamada da API
       const curtidasLocais = getCurtidasLocais();
       if (curtidasLocais.includes(id)) return;
 
@@ -423,7 +425,7 @@
         .eq("id", id);
 
       if (!error) {
-        salvarCurtidaLocal(id); // Registra a curtida no navegador do usuário
+        salvarCurtidaLocal(id);
         carregarPostagens();
       }
     }
