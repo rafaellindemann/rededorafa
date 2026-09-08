@@ -154,6 +154,14 @@
       font-weight: bold;
     }
     .btn-like:active { transform: scale(0.95); }
+    
+    /* Estilo para quando o botão estiver desabilitado/curtido */
+    .btn-like:disabled {
+      background: #cbd5e1;
+      color: #64748b;
+      cursor: not-allowed;
+      transform: none;
+    }
 
     .comentarios-box {
       text-align: left;
@@ -219,11 +227,25 @@
     const searchContainerEl = document.getElementById("search-container");
     const filtroContainerEl = document.getElementById("filtro-container");
 
-    let hashtagAtual = null; // Guarda a hashtag pesquisada no momento
+    let hashtagAtual = null;
+
+    // --- MÉTODOS DE CONTROLE DO LOCALSTORAGE ---
+    function getCurtidasLocais() {
+      const curtidas = localStorage.getItem("curtidas_mural");
+      return curtidas ? JSON.parse(curtidas) : [];
+    }
+
+    function salvarCurtidaLocal(id) {
+      const curtidas = getCurtidasLocais();
+      if (!curtidas.includes(id)) {
+        curtidas.push(id);
+        localStorage.setItem("curtidas_mural", JSON.stringify(curtidas));
+      }
+    }
 
     // Alterna o formulário de criação
     function toggleFormulario() {
-      searchContainerEl.innerHTML = ""; // Fecha pesquisa se estiver aberta
+      searchContainerEl.innerHTML = "";
       if (formContainerEl.innerHTML !== "") {
         formContainerEl.innerHTML = "";
         return;
@@ -245,7 +267,7 @@
 
     // Alterna o formulário de pesquisa
     function togglePesquisa() {
-      formContainerEl.innerHTML = ""; // Fecha postagem se estiver aberta
+      formContainerEl.innerHTML = "";
       if (searchContainerEl.innerHTML !== "") {
         searchContainerEl.innerHTML = "";
         return;
@@ -267,13 +289,12 @@
       event.preventDefault();
       let term = document.getElementById("input-busca-hashtag").value.trim();
       
-      // Adiciona o '#' caso o usuário tenha digitado sem
       if (!term.startsWith('#')) {
         term = '#' + term;
       }
 
       hashtagAtual = term;
-      searchContainerEl.innerHTML = ""; // Esconde o input após a busca
+      searchContainerEl.innerHTML = "";
       carregarPostagens();
     }
 
@@ -292,7 +313,6 @@
       const texto = document.getElementById("input-texto").value.trim();
       const hashtagsRaw = document.getElementById("input-hashtags").value.trim();
       
-      // Converte a string em Array e garante o caractere '#'
       const hashtags = hashtagsRaw
         ? hashtagsRaw.split(" ")
             .filter(h => h.length > 0)
@@ -320,7 +340,6 @@
         .select("*")
         .order("created_at", { ascending: false });
 
-      // Se houver pesquisa ativa, filtra a coluna array no Postgres
       if (hashtagAtual) {
         query = query.contains("hashtags", [hashtagAtual]);
         
@@ -347,6 +366,9 @@
         return;
       }
 
+      // Obtém as curtidas salvas nesta máquina
+      const curtidasLocais = getCurtidasLocais();
+
       feedEl.innerHTML = "";
       postagens.forEach(post => {
         const card = document.createElement("div");
@@ -357,6 +379,9 @@
           .map(c => `<li>${c}</li>`)
           .join("");
 
+        // Checa se o post atual já foi curtido localmente
+        const jaCurtido = curtidasLocais.includes(post.id);
+
         card.innerHTML = `
           <div class="box emoji-box">${post.emoji || '❤️'}</div>
           <div class="box texto-box">${post.texto}</div>
@@ -364,7 +389,13 @@
           
           <div class="box likes-box">
             <span>❤️ ${post.likes || 0} Likes</span>
-            <button class="btn-like" onclick="curtirPost(${post.id}, ${post.likes || 0})">Curtir</button>
+            <button 
+              class="btn-like" 
+              onclick="curtirPost(${post.id}, ${post.likes || 0})"
+              ${jaCurtido ? 'disabled' : ''}
+            >
+              ${jaCurtido ? 'Curtido' : 'Curtir'}
+            </button>
           </div>
 
           <div class="box comentarios-box">
@@ -382,12 +413,19 @@
     }
 
     async function curtirPost(id, likesAtuais) {
+      // Bloqueio de segurança no código antes da chamada da API
+      const curtidasLocais = getCurtidasLocais();
+      if (curtidasLocais.includes(id)) return;
+
       const { error } = await supabaseClient
         .from("postagens")
         .update({ likes: likesAtuais + 1 })
         .eq("id", id);
 
-      if (!error) carregarPostagens();
+      if (!error) {
+        salvarCurtidaLocal(id); // Registra a curtida no navegador do usuário
+        carregarPostagens();
+      }
     }
 
     async function adicionarComentario(event, id, comentariosAtuais) {
